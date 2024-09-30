@@ -94,3 +94,4 @@ ENV/
 labels_mapping.txt
 allowed_labels.txt
 jira-keys-to-github-id.txt
+jira_users.json

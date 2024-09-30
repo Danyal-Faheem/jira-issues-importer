@@ -5,7 +5,7 @@ import os.path
 from project import Project
 from importer import Importer
 from labelcolourselector import LabelColourSelector
-from utils import read_xml_files
+from utils import extract_comment_authors, read_xml_files
 
 file_names = os.getenv('JIRA_MIGRATION_FILE_PATHS') or input(
     'Path to Jira XML query file (semi-colon separate for multiple files, directories are accepted): ')
@@ -19,10 +19,15 @@ repo = os.getenv('JIRA_MIGRATION_GITHUB_REPO') or input('GitHub repository name:
 pat = os.getenv('JIRA_MIGRATION_GITHUB_ACCESS_TOKEN') or input('Github Personal Access Token: ') # or '<your-github-pat>'
 start_from_issue = input('Start from [default "0" (beginning)]: ') or '0'
 
+
 Options = namedtuple("Options", "accesstoken account repo")
 opts = Options(accesstoken=pat, account=ac, repo=repo)
 
 project = Project(jira_proj, jira_done_id, jira_base_url)
+
+for f in all_xml_files:
+    authors = extract_comment_authors(f)
+        
 
 for f in all_xml_files:
     for item in f.channel.item:
