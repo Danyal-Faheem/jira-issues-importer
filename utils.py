@@ -1,6 +1,7 @@
 from lxml import objectify
 import os
 import glob
+import json
 
 
 def fetch_labels_mapping():
@@ -49,3 +50,23 @@ def read_xml_files(file_path):
             files.append(read_xml_file(file_name))
 
     return files
+
+def extract_comment_authors(file):
+    file_name = 'jira_users.json'
+    try:
+        with open(file_name, 'r') as json_file:
+            authors = json.load(json_file)
+    except FileNotFoundError:
+        print("json_users.json not found")
+        authors = {}
+
+    for item in file.channel.item:
+        authors[str(item.reporter.get('accountid'))] = str(item.reporter) 
+        authors[str(item.assignee.get('accountid'))] = str(item.assignee)
+    
+    with open(file_name, 'w') as json_file:
+        json.dump(authors, json_file, indent=4)
+        
+    return authors
+    
+    

@@ -3,6 +3,7 @@ from collections import defaultdict
 from html.entities import name2codepoint
 from dateutil.parser import parse
 from datetime import datetime
+import json
 import re
 
 from utils import fetch_labels_mapping, fetch_allowed_labels, convert_label
@@ -16,6 +17,7 @@ class Project:
         self.jiraBaseUrl = jiraBaseUrl
         self._project = {'Milestones': defaultdict(int), 'Components': defaultdict(
             int), 'Labels': defaultdict(int), 'Types': defaultdict(int), 'Issues': []}
+        self._authors = self.read_authors()
 
         self.labels_mapping = fetch_labels_mapping()
         self.approved_labels = fetch_allowed_labels()
@@ -26,6 +28,19 @@ class Project:
     def get_components(self):
         return self._project['Components']
 
+    def read_authors(self):
+        file_name = 'jira_users.json'
+        try:
+            with open(file_name, 'r') as json_file:
+                authors = json.load(json_file)
+        except FileNotFoundError:
+            print("File not found: json_users.json")
+            authors = {}
+        return authors
+
+    def get_authors(self):
+        return self._authors
+    
     def get_issues(self):
         return self._project['Issues']
 
@@ -99,17 +114,18 @@ class Project:
             except AttributeError:
                 pass
 
-        # TODO: ensure item.assignee/reporter.get('username') to avoid "JENKINSUSER12345"
+        # TODO: ensure item.assignee/reporter to avoid "JENKINSUSER12345"
         # TODO: fixit in gh issues
 
         body = self._htmlentitydecode(item.description.text)
         # metadata: original author & link
 
-        body = body + '\n\n---\n<details><summary><i>Originally reported by <a title="' + str(item.reporter) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.reporter.get('username') + '">' + item.reporter.get('username') + '</a>, imported from: <a href="' + self.jiraBaseUrl + '/browse/' + item.key.text + '" target="_blank">' + item.title.text[item.title.text.index("]") + 2:len(item.title.text)] + '</a></i></summary>'
+
+        body = body + '\n\n---\n<details><summary><i>Originally reported by <a title="' + str(item.reporter) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.reporter + '">' + item.reporter + '</a>, imported from: <a href="' + self.jiraBaseUrl + '/browse/' + item.key.text + '" target="_blank">' + item.title.text[item.title.text.index("]") + 2:len(item.title.text)] + '</a></i></summary>'
         # metadata: assignee
         body = body + '\n<i><ul>'
         if item.assignee != 'Unassigned':
-            body = body + '\n<li><b>assignee</b>: <a title="' + str(item.assignee) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.assignee.get('username') + '">' + item.assignee.get('username') + '</a>'
+            body = body + '\n<li><b>assignee</b>: <a title="' + str(item.assignee) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.assignee + '">' + item.assignee + '</a>'
         try:
             body = body + '\n<li><b>status</b>: ' + item.status
         except AttributeError:
@@ -129,12 +145,13 @@ class Project:
         body = body + '\n<li><b>imported</b>: ' + datetime.today().strftime('%Y-%m-%d')
         body = body + '\n</ul></i>\n</details>'
 
+
         # retrieve jira components and labels as github labels
         labels = []
-        for component in item.component:
-            if os.getenv('JIRA_MIGRATION_INCLUDE_COMPONENT_IN_LABELS', 'true') == 'true':
-                labels.append('jira-component:' + component.text.lower())
-                labels.append(component.text.lower())
+        # for component in item.component:
+        #     if os.getenv('JIRA_MIGRATION_INCLUDE_COMPONENT_IN_LABELS', 'true') == 'true':
+        #         labels.append('jira-component:' + component.text.lower())
+        #         labels.append(component.text.lower())
 
         labels.append(self._jira_type_mapping(item.type.text.lower()))
         
@@ -144,8 +161,10 @@ class Project:
                 labels.append(converted_label)
 
         labels.append('imported-jira-issue')
-
+        
         unique_labels = list(set(labels))
+
+        unique_labels = [label for label in unique_labels if isinstance(label, str)]
 
         self._project['Issues'].append({'title': item.title.text,
                                         'key': item.key.text,
@@ -169,15 +188,15 @@ class Project:
         if issue_type == 'bug':
             return 'bug'
         if issue_type == 'improvement':
-            return 'rfe'
+            return 'improvement'
         if issue_type == 'new feature':
-            return 'rfe'
+            return 'new feature'
         if issue_type == 'task':
-            return 'rfe'
+            return 'task'
         if issue_type == 'story':
-            return 'rfe'
+            return 'story'
         if issue_type == 'patch':
-            return 'rfe'
+            return 'patch'
         if issue_type == 'epic':
             return 'epic'
 
@@ -254,7 +273,7 @@ class Project:
             for comment in item.comments.comment:
                 self._project['Issues'][-1]['comments'].append(
                     {"created_at": self._convert_to_iso(comment.get('created')),
-                     "body": '<i><a href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + comment.get('author') + '">' + comment.get('author') + '</a>:</i>\n' + self._htmlentitydecode(comment.text)
+                     "body": '<i><a href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + comment.get('author') + '">' + self.get_authors().get(comment.get('author'), comment.get('author')) + '</a>:</i>\n' + self._htmlentitydecode(comment.text)
                      })
         except AttributeError:
             pass
