@@ -8,7 +8,7 @@ Finally, I disabled the issue ID replacement procedures. It wasn't working for m
 
 # JIRA issues importer
 
-Python 3.x scripts for importing JIRA issues in XML format into an existing Github project without existing issues
+Python 3.x (tested on <= 3.9) scripts for importing JIRA issues in XML format into an existing Github project without existing issues
 
 # Background
 
@@ -64,6 +64,7 @@ I took these as a starting point for this project. I restructured the code and a
 ## Running the tool
 
 * export the desired JIRA issues of your project ([see section below](#export-jira-issues))
+* extract the necessary information from the XML file ([see section below](#extracting-necessary-information-from-your-xml-file))
 * to start the Github import, execute `python main.py`
 * on startup it will ask for
   * the JIRA XML export file name (use a semi-colon to enter multiple XML paths)
@@ -93,3 +94,48 @@ I took these as a starting point for this project. I restructured the code and a
 1. From results page, click on Export icon at the top right of page
 
 1. Select XML output and save file
+
+## Extracting necessary information from your xml file
+
+Here is how a sample xml file may look like. Some of the tags have been purposefuly removed to keep things easy to understand::
+
+
+```xml
+<rss version="0.92">
+  <channel>
+    <title>Jira</title>
+    <link>https://issues.jenkins.io/issues/</link>
+    <description>An XML representation of a search request</description>
+    <language>en-us</language>
+    <issue start="0" end="1000" total="1000"/>
+    <build-info>
+        <version>1001.0.0-SNAPSHOT</version>
+        <build-number>100000</build-number>
+        <build-date>01-01-2024</build-date>
+    </build-info>
+    <item>
+      <title>[Project-1234] [project] Fix the foo</title>
+        <link>https://issues.jenkins.io/browse/Project-1234</link>
+        <project id="1000000" key="Project">project</project>
+        <description>Description</description>
+        <environment></environment>
+        <key id="000001">Project-1234</key>
+        <summary>[Project-1234] [project] Fix the foo</summary>
+        <type id="10002" iconUrl="https://issues.jenkins.io/issues/">Task</type>
+        <priority id="3" iconUrl="">Medium</priority>
+        <status id="10002" iconUrl="https://issues.jenkins.io/issues/" description="">Done</status>
+        <statusCategory id="3" key="done" colorName="green"/>
+        <resolution id="10000">Done</resolution>
+        <assignee accountid="1234">John Doe</assignee>
+        <reporter accountid="1234">Albert Einstein</reporter>
+        <labels>Story</labels>
+        <created>Mon, 01 Jan 2024 00:00:00 +0000</created>
+        <updated>Mon, 07 Jan 2024 00:00:00 +0000</updated>
+        <resolved>Mon, 14 Jan 2024 00:00:00 +0000</resolved>
+    </item>
+  </channel>
+</rss>
+```
+
+* The JIRA project name is the value of the key attribute inside the ```<project>``` tag. For example, in the example above, the project name will be ``Project``.
+* The JIRA base url is the the value of ```<link>``` tag underneath the ```<title>``` tag at the start of the file. For example, in the example above, the Jira base url will be ``https://issues.jenkins.io/issues``. Note that we do not keep the trailing ``\``. Alsoe note that there are two ```<link>``` tags and one of them corresponds to the link of the issue itself. Only pick the tag at the start of the file corresponding to the channel and not the item. 
